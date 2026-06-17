@@ -6,10 +6,10 @@ from pathlib import Path
 
 
 SOURCE = Path(
-    "/home/guest1/synthetic_images/synthetic_images/cme_seg_20250320"
-)
+    "~/synthetic_images/synthetic_images/cme_seg_20250320"
+).expanduser()
+OUT_BASE = Path("~/datasets").expanduser()
 
-OUT_BASE = Path("/home/guest1/datasets")
 
 random.seed(42)
 
@@ -23,30 +23,21 @@ fractions = {
 
 
 def mask_to_polygons(mask):
-
-    mask = (mask > 0).astype("uint8") * 255
-
+    mask = mask.astype("uint8")
     contours, _ = cv2.findContours(
         mask,
         cv2.RETR_EXTERNAL,
         cv2.CHAIN_APPROX_SIMPLE
     )
-
-    polys = []
-
+    polygons_list = []
     for c in contours:
-
         if cv2.contourArea(c) < 10:
             continue
-
         c = c.squeeze()
-
         if len(c.shape) != 2:
             continue
-
-        polys.append(c)
-
-    return polys
+        polygons_list.append(c)
+    return polygons_list
 
 
 
@@ -54,31 +45,21 @@ folders = [
     f for f in SOURCE.iterdir()
     if f.is_dir() and f.name.isdigit()
 ]
-
 random.shuffle(folders)
 
 
-# split 85/15
 split = int(0.85 * len(folders))
-
 train_all = folders[:split]
 val_all = folders[split:]
-
-
 def process_folder(folder, outdir, split_name):
-
     image = list(folder.glob("*_btot.png"))
-
     if len(image) != 1:
         return
-
     image = image[0]
-
     shutil.copy(
         image,
         outdir / "images" / split_name / image.name
     )
-
 
     label_path = (
         outdir /
@@ -87,67 +68,41 @@ def process_folder(folder, outdir, split_name):
         (image.stem + ".txt")
     )
 
-
     img = cv2.imread(str(image))
-
-    h,w = img.shape[:2]
-
-
+    height, width = img.shape[:2]
     lines=[]
-
-
     prefix=image.stem.replace("_btot","")
-
-
     masks = [
         (0, folder/"mask"/f"{prefix}_mask_0.png"),
         (1, folder/"mask"/f"{prefix}_mask_2.png"),
     ]
 
-
     for cls, maskfile in masks:
-
         if not maskfile.exists():
             continue
-
         mask=cv2.imread(
             str(maskfile),
             cv2.IMREAD_UNCHANGED
         )
-
-
         mask=mask[:,:,0]
-
-
+        
         for poly in mask_to_polygons(mask):
-
             coords=[]
-
             for x,y in poly:
-
-                coords.append(str(x/w))
-                coords.append(str(y/h))
-
-
+                coords.append(str(x/width))
+                coords.append(str(y/height))
             lines.append(
                 str(cls)+" "+" ".join(coords)
             )
-
-
+            
     label_path.write_text(
         "\n".join(lines)
     )
 
-
-
 for name, frac in fractions.items():
-
     outdir = OUT_BASE / f"cme_yolo_seg_{name}"
-
     selected_train = train_all[:int(len(train_all)*frac)]
     selected_val = val_all[:int(len(val_all)*frac)]
-
-
     for split_name, folderset in [
         ("train", selected_train),
         ("val", selected_val)
@@ -181,8 +136,6 @@ names:
 
 
     (outdir/"data.yaml").write_text(yaml)
-
-
     print(
         name,
         "created:",
@@ -191,6 +144,6 @@ names:
         len(selected_val),
         "val folders"
     )
-
-
 print("DONE")
+
+
