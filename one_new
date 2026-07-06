@@ -1,0 +1,200 @@
+from pathlib import Path
+import cv2
+import numpy as np
+from ultralytics import YOLO
+import yaml
+import argparse
+
+"""
+this function takes in masks in the form of numpy arrays (the ground_truth mask and the model's prediction), and returns the IoU for 
+this training example. 
+"""
+def iou_score(ground_truth, pred):
+    # sums the number of pixels that intersect between the ground truth and prediction with np.logical_and()
+    intersection = np.logical_and(ground_truth, pred).sum()
+    # sums the number of pixels in the union of the two masks
+    union = np.logical_or(ground_truth, pred).sum()
+
+    if union == 0:
+        return 1.0
+
+    # returns IoU
+    return intersection / union
+"""
+this function takes in masks in the form of numpy arrays (the ground_truth mask and the model's prediction), and returns the F1 score for 
+this training example.
+"""
+def f1_score(ground_truth, pred):
+     # sums the number of pixels that intersect between the ground truth and prediction with np.logical_and()
+    intersection = np.logical_and(ground_truth, pred).sum()
+    # sums the total number of pixels that are True in the ground truth and prediction
+    pixel_sum = ground_truth.sum() + pred.sum()
+
+    if pixel_sum == 0:
+        return 1.0
+
+    # returns F1 score
+    return 2 * intersection / pixel_sum
+
+
+"""
+this function takes in the name of the image and the name of the root directory containing the images, and
+finds the original folder containing the image.
+    
+Original structure:
+cme_seg_20250320/
+    0/
+    1/
+    2/
+    ...
+
+this function would take in something like "abc123_btot.png" and return "cme_seg_20250320/0," the exact folder within the root directory
+cme_seg_20250320
+"""
+def find_original_folder(image_name, source_root):
+    stem = Path(image_name).stem
+    for folder in source_root.iterdir():
+        if folder.is_dir():
+            for img in folder.glob("*_btot.png"):
+                if img.stem == stem:
+                    return folder
+    return None
+
+def main(args):
+    # load the trained model
+    model = YOLO(args.model)
+
+    # reads the data.yaml file for the dataset to locate the folder containing validation images
+    with open(args.data) as f:
+        data = yaml.safe_load(f)
+    val_dir = Path(data["path"]) / data["val"]
+    source_root = Path(args.original)
+    
+    # run the model on validation images 
+    results = model(
+        source=str(val_dir),
+        imgsz=args.imgsz,
+        device=args.device,
+        verbose=False
+    )
+
+                                                                                                                                                                                            
+    cme_IoUs = []
+    occ_IoUs = []
+
+    cme_f1s = []
+    occ_f1s = []
+
+    # process each prediction/image pair. each r in results is a ultralytics.engine.results.Results object, 
+    # created by YOLO, which stores predictions
+    for r in results:
+        # get image name and folder using the function above (for example, original = cme_seg_20250320/0)
+        image_name = Path(r.path).name
+        original = find_original_folder(
+            image_name,
+            source_root
+        )
+        if original is None:
+          print("Missing original:", image_name)
+          continue
+
+        # loads the mask within the folder (in the form of a boolean mask with either 0 or 255)
+        mask_dir = original / "mask"
+
+        # load the occulter mask with the cv2.imread() function (in the form of a boolean mask with either 0 or 255)
+        occ_ground_truth = cv2.imread(
+            str(next(mask_dir.glob("*_mask_0.png"))),
+            cv2.IMREAD_GRAYSCALE
+        )
+        # load the CME mask with the cv2.imread() function
+        cme_ground_truth = cv2.imread(
+            str(next(mask_dir.glob("*_mask_2.png"))),
+            cv2.IMREAD_GRAYSCALE
+        )
+
+        # convert masks to binary (Boolean values) 
+        occ_ground_truth = occ_ground_truth > 0
+        cme_ground_truth = cme_ground_truth > 0
+        # initialize prediction masks
+        occ_pred = np.zeros_like(occ_ground_truth)
+        cme_pred = np.zeros_like(cme_ground_truth)
+
+        if r.masks is not None:
+            # get YOLO's predicted masks & corresponding classes  
+            masks = r.masks.data.cpu().numpy()
+            classes = r.boxes.cls.cpu().numpy()
+
+            # zip guarantees masks will correspond to classes
+            for mask, cls in zip(masks, classes):
+                mask = cv2.resize(mask,
+                    (512,512)
+                ) > 0.5
+
+                # change occ_pred and cme_pred in accordance with YOLO's predictions
+                if int(cls) == 0:
+                    occ_pred |= mask
+                elif int(cls) == 1:
+                    cme_pred |= mask
+
+
+        # calculate IoU scores passing in mask numpy arrays
+        occ_IoU = iou_score(
+            occ_ground_truth,
+            occ_pred
+        )
+
+        cme_IoU = iou_score(
+            cme_ground_truth,
+            cme_pred
+        )
+
+        
+        occ_IoUs.append(occ_IoU)
+        cme_IoUs.append(cme_IoU)
+        occ_f1s.append(
+            f1_score(occ_ground_truth, occ_pred)
+        )
+
+        cme_f1s.append(
+            f1_score(cme_ground_truth, cme_pred)
+        )
+
+
+    print(f"Occulter IoU: {np.mean(occ_IoUs):.4f}")
+    print(f"CME IoU:      {np.mean(cme_IoUs):.4f}")
+    print(f"Mean IoU:     {(np.mean(occ_IoUs)+np.mean(cme_IoUs))/2:.4f}")
+    print(f"Occulter F1:     {np.mean(occ_f1s):.4f}")
+    print(f"CME F1:     {np.mean(cme_f1s):.4f}")
+    print(f"Mean F1:    {(np.mean(occ_f1s)+np.mean(cme_f1s))/2:.4f}")
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--model",
+        required=True
+    )
+
+    parser.add_argument(
+        "--data",
+        required=True
+    )
+
+    parser.add_argument(
+        "--original",
+        required=True
+    )
+
+    parser.add_argument(
+        "--device",
+        default="0"
+    )
+
+    parser.add_argument(
+        "--imgsz",
+        default=512,
+        type=int
+    )
+
+    args = parser.parse_args()
+    main(args)
