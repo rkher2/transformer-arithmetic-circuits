@@ -1,0 +1,204 @@
+
+from pathlib import Path
+import cv2
+import numpy as np
+from ultralytics import YOLO
+import yaml
+import argparse
+
+
+def iou_score(gt, pred):
+    intersection = np.logical_and(gt, pred).sum()
+    union = np.logical_or(gt, pred).sum()
+
+    if union == 0:
+        return 1.0
+
+    return intersection / union
+
+
+def dice_score(gt, pred):
+    intersection = np.logical_and(gt, pred).sum()
+
+    denom = gt.sum() + pred.sum()
+
+    if denom == 0:
+        return 1.0
+
+    return 2 * intersection / denom
+
+
+def find_original_folder(image_name, source_root):
+    """
+    Find original folder containing this image.
+    Original structure:
+
+    cme_seg_20250320/
+        0/
+        1/
+        2/
+        ...
+    """
+
+    stem = Path(image_name).stem
+
+    for folder in source_root.iterdir():
+        if folder.is_dir():
+
+            for img in folder.glob("*_btot.png"):
+                if img.stem == stem:
+                    return folder
+
+    return None
+
+
+def main(args):
+
+    model = YOLO(args.model)
+
+    with open(args.data) as f:
+        data = yaml.safe_load(f)
+
+    val_dir = Path(data["path"]) / data["val"]
+
+    source_root = Path(args.original)
+
+    results = model(
+        source=str(val_dir),
+        imgsz=args.imgsz,
+        device=args.device,
+        verbose=False
+    )
+
+
+    cme_ious = []
+    occ_ious = []
+
+    cme_dice = []
+    occ_dice = []
+
+
+    for r in results:
+
+        image_name = Path(r.path).name
+
+        original = find_original_folder(
+            image_name,
+            source_root
+        )
+
+        if original is None:
+            print("Missing original:", image_name)
+            continue
+
+
+        mask_dir = original / "mask"
+
+       
+        occ_gt = cv2.imread(
+            str(next(mask_dir.glob("*_mask_0.png"))),
+            cv2.IMREAD_GRAYSCALE
+        )
+
+        cme_gt = cv2.imread(
+            str(next(mask_dir.glob("*_mask_2.png"))),
+            cv2.IMREAD_GRAYSCALE
+        )
+
+
+        occ_gt = occ_gt > 0
+        cme_gt = cme_gt > 0
+
+
+        occ_pred = np.zeros_like(occ_gt)
+        cme_pred = np.zeros_like(cme_gt)
+
+
+        if r.masks is not None:
+
+            masks = r.masks.data.cpu().numpy()
+            classes = r.boxes.cls.cpu().numpy()
+
+
+            for mask, cls in zip(masks, classes):
+
+                mask = cv2.resize(
+                    mask,
+                    (512,512)
+                ) > 0.5
+
+
+                if int(cls) == 0:
+                    occ_pred |= mask
+
+                elif int(cls) == 1:
+                    cme_pred |= mask
+
+
+
+        occ_iou = iou_score(
+            occ_gt,
+            occ_pred
+        )
+
+        cme_iou = iou_score(
+            cme_gt,
+            cme_pred
+        )
+
+
+        occ_ious.append(occ_iou)
+        cme_ious.append(cme_iou)
+
+
+        occ_dice.append(
+            dice_score(occ_gt, occ_pred)
+        )
+
+        cme_dice.append(
+            dice_score(cme_gt, cme_pred)
+        )
+
+
+    print(f"Occulter IoU: {np.mean(occ_ious):.4f}")
+    print(f"CME IoU:      {np.mean(cme_ious):.4f}")
+    print(f"Mean IoU:     {(np.mean(occ_ious)+np.mean(cme_ious))/2:.4f}")
+    print(f"Occ Dice:     {np.mean(occ_dice):.4f}")
+    print(f"CME Dice:     {np.mean(cme_dice):.4f}")
+    print(f"Mean Dice:    {(np.mean(occ_dice)+np.mean(cme_dice))/2:.4f}")
+
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--model",
+        required=True
+    )
+
+    parser.add_argument(
+        "--data",
+        required=True
+    )
+
+    parser.add_argument(
+        "--original",
+        required=True
+    )
+
+    parser.add_argument(
+        "--device",
+        default="0"
+    )
+
+    parser.add_argument(
+        "--imgsz",
+        default=512,
+        type=int
+    )
+
+    args = parser.parse_args()
+
+    main(args)
