@@ -1,0 +1,2937 @@
+PS C:\Users\rkher> git, tmux, nvidia-smi, uv, exe file (environment) - install a YOLO env or requirements for YOLO
+
+
+scp -r guest1@192.168.220.36:~/synthetic_images/synthetic_images/cme_seg_20250320/
+ scp guest1@192.168.220.36:~/synthetic_images/synthetic_images/cme_seg_20250320/0/*.png .
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+You're actually in excellent shape.
+
+The important line is:
+
+Ultralytics 8.4.68 🚀 Python-3.12.13 torch-2.12.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+
+That means:
+
+✅ YOLO installed correctly
+✅ Python 3.12 environment working
+✅ PyTorch installed correctly
+✅ CUDA-enabled PyTorch detected
+✅ GPU visible to PyTorch
+✅ RTX 3090 available
+✅ 2 GPUs detected
+
+You do not need to do anything else for CUDA.
+
+The reason you got:
+
+nvidia smi
+
+instead of
+
+nvidia-smi
+
+is that the command contains a hyphen.
+
+Try:
+
+which nvidia-smi
+nvidia-smi
+
+But honestly, yolo checks already proved CUDA is working.
+
+I would save this environment now
+
+From inside your activated env:
+
+uv pip freeze > ~/envs/yolo26/requirements.txt
+
+Now you have a reproducible YOLO environment.
+
+Useful aliases
+
+Add these to ~/.bashrc:
+
+alias yoloenv='source ~/envs/yolo26/bin/activate'
+
+alias yolo_tmux='tmux attach -t yolo'
+
+alias yolo_new='tmux new -s yolo'
+
+Reload:
+
+source ~/.bashrc
+Typical workflow
+
+SSH in:
+
+ssh guest1@server
+
+Start or attach to tmux:
+
+tmux attach -t yolo
+
+Activate environment:
+
+source ~/envs/yolo26/bin/activate
+
+Run training:
+
+yolo detect train \
+    model=yolo26n.pt \
+    data=data.yaml \
+    epochs=100 \
+    imgsz=640
+
+Detach:
+
+Ctrl+b
+d
+
+Training keeps running even after you disconnect.
+
+For Git
+
+I would also set up a workspace like:
+
+~/projects/
+├── my-dataset/
+├── yolo-project/
+│   ├── data.yaml
+│   ├── train.py
+│   ├── README.md
+│   └── .gitignore
+└── experiments/
+
+and initialize:
+
+cd ~/projects/yolo-project
+
+git init
+
+A useful .gitignore for YOLO:
+
+runs/
+*.pt
+*.pth
+__pycache__/
+.ipynb_checkpoints/
+.env
+venv/
+
+At this point your environment is essentially production-ready. The next thing I'd help with is organizing your datasets and training jobs. For example, if your images already live somewhere on the server, I can help you create the data.yaml, directory structure, and launch command for YOLO26 training.
+
+Run training:
+
+yolo detect train \
+    model=yolo26n.pt \
+    data=data.yaml \
+    epochs=100 \
+    imgsz=640 i dont even need code js this command?
+
+Yes. One of the nice things about Ultralytics YOLO is that you can train entirely from the command line.
+
+If your dataset is already organized correctly and you have a valid data.yaml, then this is enough:
+
+yolo detect train \
+    model=yolo26n.pt \
+    data=data.yaml \
+    epochs=100 \
+    imgsz=640
+
+No Python script required.
+
+Typical dataset structure
+
+For object detection:
+
+dataset/
+├── images/
+│   ├── train/
+│   └── val/
+├── labels/
+│   ├── train/
+│   └── val/
+└── data.yaml
+
+Example:
+
+dataset/
+├── images/
+│   ├── train/img1.jpg
+│   ├── train/img2.jpg
+│   └── val/img3.jpg
+├── labels/
+│   ├── train/img1.txt
+│   ├── train/img2.txt
+│   └── val/img3.txt
+└── data.yaml
+Example data.yaml
+path: /home/guest1/datasets/mydata
+
+train: images/train
+val: images/val
+
+names:
+  0: person
+  1: car
+  2: bicycle
+
+Then train:
+
+cd /home/guest1/datasets/mydata
+
+yolo detect train \
+    model=yolo26n.pt \
+    data=data.yaml \
+    epochs=100
+Common useful options
+
+Use a larger model:
+
+yolo detect train model=yolo26s.pt data=data.yaml epochs=100
+
+Use GPU 0:
+
+yolo detect train model=yolo26n.pt data=data.yaml device=0
+
+Use both RTX 3090s:
+
+yolo detect train model=yolo26n.pt data=data.yaml device=0,1
+
+Set batch size:
+
+yolo detect train model=yolo26n.pt data=data.yaml batch=32
+
+Resume training:
+
+yolo detect train resume model=runs/detect/train/weights/last.pt
+Where results go
+
+By default YOLO creates something like:
+
+runs/
+└── detect/
+    └── train/
+        ├── weights/
+        │   ├── best.pt
+        │   └── last.pt
+        ├── results.png
+        └── results.csv
+
+The file you'll usually want afterward is:
+
+runs/detect/train/weights/best.pt
+Before training
+
+I'd recommend running:
+
+yolo detect train \
+    model=yolo26n.pt \
+    data=data.yaml \
+    epochs=1
+
+Just to verify:
+
+the dataset loads correctly,
+labels are valid,
+GPUs are being used,
+there are no path issues.
+
+If you show me your dataset folder structure and data.yaml, I can sanity-check it before you launch a 100-epoch run.
+
+what do I need git for if there's no code..
+
+You don’t strictly need git for YOLO training itself.
+
+But in practice, even when there’s “no code,” git is still useful because what you’re really working with is a research artifact, not just a command.
+
+What you actually have without git
+
+Right now your YOLO setup likely includes:
+
+data.yaml
+dataset splits (or dataset paths)
+training commands you ran
+hyperparameters you tweak over time
+model outputs (best.pt, runs/)
+maybe small helper scripts later
+
+That stuff changes constantly during experimentation.
+
+Why git is still useful (even with no code)
+1. Track dataset configuration changes
+
+Example:
+
+data.yaml
+
+You might tweak:
+
+class names
+train/val split paths
+dataset location (moving from /data1 → /data2)
+
+Git lets you answer:
+
+“Why did this run suddenly get worse?”
+
+2. Track training commands + experiments
+
+People usually keep something like:
+
+train.sh
+
+or:
+
+yolo detect train model=yolo26n.pt epochs=100 imgsz=640
+
+Then you evolve it:
+
+change model size
+change batch size
+change augmentation
+change dataset version
+
+Git gives you history of experiments.
+
+3. Save reproducibility (this is the big one)
+
+Even if you don’t write code, you usually end up with:
+
+project/
+├── data.yaml
+├── notes.md
+├── train.sh
+├── eval.sh
+
+Without git:
+
+you lose “what worked”
+you overwrite configs
+you forget which run produced which model
+
+With git:
+
+every experiment is reversible
+every result is traceable
+4. Collaboration (if you ever scale this)
+
+Even on a server, eventually:
+
+someone else wants your dataset setup
+or you move jobs to another GPU box
+
+Git becomes the transfer mechanism.
+
+5. Versioning dataset metadata (not images)
+
+You usually do NOT git large images, but you DO version:
+
+data.yaml
+dataset split files (train.txt, val.txt)
+preprocessing scripts
+labeling rules
+When git is NOT useful
+
+You can skip git if:
+
+you're just running a one-off training job
+you don’t care about reproducing results
+you’re not changing configs over time
+
+In that case:
+
+tmux + YOLO CLI alone is enough
+
+Minimal honest recommendation for your setup
+
+Given your server setup:
+
+✔ tmux → for long training jobs (mandatory)
+✔ uv env → for reproducible Python (mandatory)
+⚪ git → optional but highly recommended once you do >1 experiment
+A practical middle ground (what most ML people do)
+
+Instead of full “software engineering git usage”, just do:
+
+~/projects/yolo-exp/
+
+with:
+
+data.yaml
+train.sh
+notes.md
+
+Then:
+
+git init
+git add .
+git commit -m "baseline experiment"
+
+and only update it when something meaningful changes.
+
+If you want, I can show you a clean YOLO experiment structure that keeps:
+
+runs
+datasets
+models
+configs
+all organized so you don’t end up with a messy runs/ graveyard (which is what usually happens fast on GPU servers).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+You're actually in excellent shape.
+
+The important line is:
+
+Ultralytics 8.4.68 🚀 Python-3.12.13 torch-2.12.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+
+That means:
+
+✅ YOLO installed correctly
+✅ Python 3.12 environment working
+✅ PyTorch installed correctly
+✅ CUDA-enabled PyTorch detected
+✅ GPU visible to PyTorch
+✅ RTX 3090 available
+✅ 2 GPUs detected
+
+You do not need to do anything else for CUDA.
+
+The reason you got:
+
+nvidia smi
+
+instead of
+
+nvidia-smi
+
+is that the command contains a hyphen.
+
+Try:
+
+which nvidia-smi
+nvidia-smi
+
+But honestly, yolo checks already proved CUDA is working.
+
+I would save this environment now
+
+From inside your activated env:
+
+uv pip freeze > ~/envs/yolo26/requirements.txt
+
+Now you have a reproducible YOLO environment.
+
+Useful aliases
+
+Add these to ~/.bashrc:
+
+alias yoloenv='source ~/envs/yolo26/bin/activate'
+
+alias yolo_tmux='tmux attach -t yolo'
+
+alias yolo_new='tmux new -s yolo'
+
+Reload:
+
+source ~/.bashrc
+Typical workflow
+
+SSH in:
+
+ssh guest1@server
+
+Start or attach to tmux:
+
+tmux attach -t yolo
+
+Activate environment:
+
+source ~/envs/yolo26/bin/activate
+
+Run training:
+
+yolo detect train \
+    model=yolo26n.pt \
+    data=data.yaml \
+    epochs=100 \
+    imgsz=640
+
+Detach:
+
+Ctrl+b
+d
+
+Training keeps running even after you disconnect.
+
+For Git
+
+I would also set up a workspace like:
+
+~/projects/
+├── my-dataset/
+├── yolo-project/
+│   ├── data.yaml
+│   ├── train.py
+│   ├── README.md
+│   └── .gitignore
+└── experiments/
+
+and initialize:
+
+cd ~/projects/yolo-project
+
+git init
+
+A useful .gitignore for YOLO:
+
+runs/
+*.pt
+*.pth
+__pycache__/
+.ipynb_checkpoints/
+.env
+venv/
+
+At this point your environment is essentially production-ready. The next thing I'd help with is organizing your datasets and training jobs. For example, if your images already live somewhere on the server, I can help you create the data.yaml, directory structure, and launch command for YOLO26 training.
+
+Run training:
+
+yolo detect train \
+    model=yolo26n.pt \
+    data=data.yaml \
+    epochs=100 \
+    imgsz=640 i dont even need code js this command?
+
+Yes. One of the nice things about Ultralytics YOLO is that you can train entirely from the command line.
+
+If your dataset is already organized correctly and you have a valid data.yaml, then this is enough:
+
+yolo detect train \
+    model=yolo26n.pt \
+    data=data.yaml \
+    epochs=100 \
+    imgsz=640
+
+No Python script required.
+
+Typical dataset structure
+
+For object detection:
+
+dataset/
+├── images/
+│   ├── train/
+│   └── val/
+├── labels/
+│   ├── train/
+│   └── val/
+└── data.yaml
+
+Example:
+
+dataset/
+├── images/
+│   ├── train/img1.jpg
+│   ├── train/img2.jpg
+│   └── val/img3.jpg
+├── labels/
+│   ├── train/img1.txt
+│   ├── train/img2.txt
+│   └── val/img3.txt
+└── data.yaml
+Example data.yaml
+path: /home/guest1/datasets/mydata
+
+train: images/train
+val: images/val
+
+names:
+  0: person
+  1: car
+  2: bicycle
+
+Then train:
+
+cd /home/guest1/datasets/mydata
+
+yolo detect train \
+    model=yolo26n.pt \
+    data=data.yaml \
+    epochs=100
+Common useful options
+
+Use a larger model:
+
+yolo detect train model=yolo26s.pt data=data.yaml epochs=100
+
+Use GPU 0:
+
+yolo detect train model=yolo26n.pt data=data.yaml device=0
+
+Use both RTX 3090s:
+
+yolo detect train model=yolo26n.pt data=data.yaml device=0,1
+
+Set batch size:
+
+yolo detect train model=yolo26n.pt data=data.yaml batch=32
+
+Resume training:
+
+yolo detect train resume model=runs/detect/train/weights/last.pt
+Where results go
+
+By default YOLO creates something like:
+
+runs/
+└── detect/
+    └── train/
+        ├── weights/
+        │   ├── best.pt
+        │   └── last.pt
+        ├── results.png
+        └── results.csv
+
+The file you'll usually want afterward is:
+
+runs/detect/train/weights/best.pt
+Before training
+
+I'd recommend running:
+
+yolo detect train \
+    model=yolo26n.pt \
+    data=data.yaml \
+    epochs=1
+
+Just to verify:
+
+the dataset loads correctly,
+labels are valid,
+GPUs are being used,
+there are no path issues.
+
+If you show me your dataset folder structure and data.yaml, I can sanity-check it before you launch a 100-epoch run.
+
+what do I need git for if there's no code..
+
+You don’t strictly need git for YOLO training itself.
+
+But in practice, even when there’s “no code,” git is still useful because what you’re really working with is a research artifact, not just a command.
+
+What you actually have without git
+
+Right now your YOLO setup likely includes:
+
+data.yaml
+dataset splits (or dataset paths)
+training commands you ran
+hyperparameters you tweak over time
+model outputs (best.pt, runs/)
+maybe small helper scripts later
+
+That stuff changes constantly during experimentation.
+
+Why git is still useful (even with no code)
+1. Track dataset configuration changes
+
+Example:
+
+data.yaml
+
+You might tweak:
+
+class names
+train/val split paths
+dataset location (moving from /data1 → /data2)
+
+Git lets you answer:
+
+“Why did this run suddenly get worse?”
+
+2. Track training commands + experiments
+
+People usually keep something like:
+
+train.sh
+
+or:
+
+yolo detect train model=yolo26n.pt epochs=100 imgsz=640
+
+Then you evolve it:
+
+change model size
+change batch size
+change augmentation
+change dataset version
+
+Git gives you history of experiments.
+
+3. Save reproducibility (this is the big one)
+
+Even if you don’t write code, you usually end up with:
+
+project/
+├── data.yaml
+├── notes.md
+├── train.sh
+├── eval.sh
+
+Without git:
+
+you lose “what worked”
+you overwrite configs
+you forget which run produced which model
+
+With git:
+
+every experiment is reversible
+every result is traceable
+4. Collaboration (if you ever scale this)
+
+Even on a server, eventually:
+
+someone else wants your dataset setup
+or you move jobs to another GPU box
+
+Git becomes the transfer mechanism.
+
+5. Versioning dataset metadata (not images)
+
+You usually do NOT git large images, but you DO version:
+
+data.yaml
+dataset split files (train.txt, val.txt)
+preprocessing scripts
+labeling rules
+When git is NOT useful
+
+You can skip git if:
+
+you're just running a one-off training job
+you don’t care about reproducing results
+you’re not changing configs over time
+
+In that case:
+
+tmux + YOLO CLI alone is enough
+
+Minimal honest recommendation for your setup
+
+Given your server setup:
+
+✔ tmux → for long training jobs (mandatory)
+✔ uv env → for reproducible Python (mandatory)
+⚪ git → optional but highly recommended once you do >1 experiment
+A practical middle ground (what most ML people do)
+
+Instead of full “software engineering git usage”, just do:
+
+~/projects/yolo-exp/
+
+with:
+
+data.yaml
+train.sh
+notes.md
+
+Then:
+
+git init
+git add .
+git commit -m "baseline experiment"
+
+and only update it when something meaningful changes.
+
+If you want, I can show you a clean YOLO experiment structure that keeps:
+
+runs
+datasets
+models
+configs
+all organized so you don’t end up with a messy runs/ graveyard (which is what usually happens fast on GPU servers).
+Can I make a .exe file to save my env
+
+Short answer: not in the “Windows .exe” sense on Linux.
+
+But I think what you’re actually trying to do is one of these:
+
+“I want to save my YOLO environment so I can reuse it without reinstalling everything.”
+
+On Linux, you don’t use .exe files for that. You use environment snapshots or portable environments.
+
+What you should do instead (correct approaches)
+Option 1: uv environment (best for you)
+
+You already have this set up.
+
+To “save” your env:
+
+uv pip freeze > requirements.txt
+
+Then recreate it anywhere:
+
+uv venv --python 3.12 yolo26
+source yolo26/bin/activate
+uv pip install -r requirements.txt
+
+👉 This is the closest equivalent to “packing an exe”
+
+Option 2: Copy the whole environment (not recommended)
+
+You can try copying the folder:
+
+cp -r ~/envs/yolo26 ~/envs/yolo26_copy
+
+But this often breaks because:
+
+paths are hardcoded
+compiled libraries depend on system paths
+
+So this is fragile.
+
+Option 3: Export a fully reproducible env (best practice)
+
+With uv:
+
+uv pip freeze > requirements.txt
+
+And also save Python version:
+
+uv python list > python_version.txt
+
+Now your “environment” becomes:
+
+project/
+├── requirements.txt
+├── data.yaml
+├── train.sh
+
+This is how ML teams actually “version environments.”
+
+Option 4: Container (closest thing to an “.exe for Linux ML”)
+
+If you really want portability, use Docker:
+
+docker run ...
+
+A Docker image is basically:
+
+“a frozen machine with your env inside”
+
+But it requires sudo/admin on most servers, so you likely can’t use it here.
+
+Important mental model shift
+
+On Linux ML servers:
+
+Windows concept	Linux ML equivalent
+.exe program	script / command
+installed app	Python venv
+portable exe bundle	requirements.txt + uv
+system snapshot	Docker image
+What I recommend for YOU (based on your setup)
+
+You already have a good stack:
+
+uv → environment manager
+tmux → job persistence
+yolo CLI → training
+
+So your “save button” is:
+
+uv pip freeze > requirements.txt
+
+That’s it.
+
+If you want next-level setup, I can help you build:
+
+a train.sh launcher
+automatic experiment logging
+dataset versioning
+run naming like exp_001, exp_002
+
+That’s what actually replaces the idea of “packaging your env.”
+
+I did this right? uv pip freeze > requirements.txt so where is my requirements.txt file
+
+Yes — that command is correct.
+
+uv pip freeze > requirements.txt
+Where it went
+
+It was created in your current working directory (the folder you were in when you ran the command).
+
+So if you were in:
+
+/home/guest1
+
+then it’s here:
+
+/home/guest1/requirements.txt
+How to find it quickly
+
+Run:
+
+pwd
+ls -l requirements.txt
+
+If you’re not sure where you ran it from:
+
+find ~ -name requirements.txt 2>/dev/null
+Important detail (common confusion)
+
+Your command does NOT save the environment itself.
+
+It only saves:
+
+installed Python packages list
+
+So it’s just a text file like:
+
+torch==...
+ultralytics==...
+numpy==...
+If you want it inside your YOLO env folder (recommended)
+
+Move it:
+
+mv requirements.txt ~/envs/yolo26/
+
+Then your env folder becomes self-contained:
+
+~/envs/yolo26/
+├── bin/
+├── lib/
+├── requirements.txt   ← now stored here
+Best practice (clean setup)
+
+Next time, do this inside your project or env folder:
+
+cd ~/envs/yolo26
+source bin/activate
+uv pip freeze > requirements.txt
+
+If you want, I can help you set up a single command like save-env / load-env so you never have to think about this again.
+
+would this file be part of git
+
+Yes — it can be part of git, but whether it should be depends on how you’re organizing things.
+
+✔️ When requirements.txt SHOULD be in git
+
+Include it if:
+
+It defines your working environment for a project
+You want reproducibility (very common in ML)
+You are sharing the project with others
+You want to recreate training results later
+
+Typical structure:
+
+~/projects/yolo-exp/
+├── data.yaml
+├── train.sh
+├── requirements.txt   ✔ tracked in git
+└── README.md
+
+Then:
+
+git add requirements.txt
+git commit -m "Add environment spec"
+❌ When it SHOULD NOT be in git
+
+Do NOT commit it if:
+
+It’s inside your global reusable env folder (~/envs/yolo26)
+It represents your system-wide personal setup, not a project
+
+Because:
+
+That env is not project-specific
+It changes frequently
+It’s better treated as a “runtime installation,” not source material
+✔️ Best practice (important)
+
+You should separate:
+
+1. Global environment (NOT git)
+~/envs/yolo26/   ❌ not in git
+2. Project environment spec (YES git)
+~/projects/my-yolo-project/requirements.txt  ✔ in git
+🧠 Simple rule of thumb
+
+If it helps reproduce a project, put it in git.
+If it describes your machine setup, don’t.
+
+🔥 For your setup specifically
+
+Since you’re using:
+
+uv
+YOLO CLI
+tmux
+a reusable env
+
+Best workflow is:
+
+cd ~/projects/yolo-exp
+uv pip freeze > requirements.txt
+git add requirements.txt
+git commit -m "snapshot env"
+
+If you want, I can help you design a clean YOLO repo layout where:
+
+dataset
+configs
+runs
+env snapshot
+training scripts
+
+are all organized so you never lose experiments or models again.
+
+What do I do to re enter the environment every time my computer goes off
+
+You don’t need to “recreate” anything each time — you just reactivate the environment.
+
+Your YOLO environment already exists here:
+
+~/envs/yolo26
+✔️ Every time you SSH back in
+Step 1: connect to the server
+ssh guest1@gehme-gpu
+Step 2: activate your YOLO environment
+source ~/envs/yolo26/bin/activate
+
+After this, your prompt should look like:
+
+(yolo26) guest1@gehme-gpu:~$
+
+That means you're back in the environment.
+
+✔️ Then optionally re-enter tmux (very important)
+
+If you were training before:
+
+tmux attach -t yolo
+
+If you forgot the session name:
+
+tmux ls
+🧠 Full “restart workflow” (what you always do)
+ssh guest1@gehme-gpu
+
+source ~/envs/yolo26/bin/activate
+
+tmux attach -t yolo
+
+That’s it.
+
+⚠️ Common misconception
+
+You do NOT need to:
+
+reinstall YOLO
+rerun uv pip install
+recreate the environment
+use requirements.txt every time
+
+That only happens if you delete the env.
+
+💡 Optional upgrade (makes life easier)
+
+Add this to your ~/.bashrc:
+
+alias yoloenv='source ~/envs/yolo26/bin/activate'
+alias yolo='tmux attach -t yolo'
+
+Then you can just do:
+
+yoloenv
+yolo
+
+If you want, I can help you set up an even cleaner system where:
+
+tmux auto-starts training sessions
+environments auto-activate per project
+you never type long commands again
+
+That’s usually the next step once this basic workflow is stable.
+
+how do I prepare the data
+
+Data prep is the real make-or-break step for YOLO. The model + GPU you already have are fine — what matters now is whether your dataset is in the correct structure and labels are clean.
+
+I’ll walk you through the standard YOLO detection format (what Ultralytics expects for YOLO26).
+
+1. What YOLO expects (core idea)
+
+For object detection, every image needs a matching label file:
+
+image.jpg
+image.txt
+
+The .txt file contains bounding boxes in YOLO format.
+
+2. Correct folder structure
+
+This is the standard:
+
+dataset/
+├── images/
+│   ├── train/
+│   ├── val/
+│   └── test/        (optional)
+├── labels/
+│   ├── train/
+│   ├── val/
+│   └── test/
+└── data.yaml
+3. Label format (VERY important)
+
+Each label file looks like this:
+
+class_id x_center y_center width height
+
+All values are normalized (0–1).
+
+Example:
+0 0.52 0.48 0.20 0.35
+1 0.30 0.60 0.10 0.15
+
+Meaning:
+
+0 = class 0
+box centered at (0.52, 0.48)
+width = 0.20 of image width
+height = 0.35 of image height
+4. Your data.yaml
+
+This tells YOLO what your dataset is:
+
+path: /home/guest1/datasets/mydata
+
+train: images/train
+val: images/val
+
+names:
+  0: person
+  1: car
+  2: dog
+5. How to actually prepare your data
+Step A — Put images somewhere
+mkdir -p ~/datasets/mydata/images/train
+mkdir -p ~/datasets/mydata/images/val
+Step B — Label your images
+
+You have 3 options:
+
+Option 1 (recommended): Roboflow / CVAT / LabelImg
+LabelImg (lightweight local tool)
+CVAT (powerful, web-based)
+Roboflow (easy export to YOLO format)
+
+They export directly in YOLO format.
+
+Option 2: Manual labeling (not recommended)
+
+You write .txt files yourself (error-prone).
+
+Option 3: Convert existing datasets
+
+If your data is COCO or Pascal VOC, YOLO can convert it.
+
+6. Split dataset (train/val)
+
+Typical split:
+
+80% train
+20% val
+
+Example:
+
+images/train
+images/val
+labels/train
+labels/val
+
+Important: images and labels must match 1:1 filenames.
+
+7. Sanity check before training (VERY important)
+
+Run a quick test:
+
+yolo detect train model=yolo26n.pt data=data.yaml epochs=1
+
+If something is wrong, YOLO will usually tell you:
+
+missing labels
+wrong paths
+class mismatch
+8. Common mistakes (avoid these)
+❌ Wrong
+labels not matching image names
+forgetting normalization (values > 1)
+mixing class IDs incorrectly
+missing data.yaml
+✅ Correct
+every image has a .txt
+same filename (except extension)
+normalized coordinates
+consistent class indexing
+9. Minimal “good dataset checklist”
+
+Before training:
+
+ images in images/train and images/val
+ labels in matching folders
+ .txt files exist for every image
+ data.yaml correct path
+ class names defined
+ run epochs=1 test
+If you want next step (high value)
+
+If you tell me:
+
+what your data is (videos? images? existing dataset?)
+how many classes
+whether it's already labeled
+
+I can:
+
+design your exact folder structure
+generate your data.yaml
+and even give you a conversion script if your data is COCO/VOC/video frames
+
+That’s usually where most YOLO projects succeed or fail.
+
+for segmentation btw
+
+Good — segmentation changes the format slightly, but the idea is the same.
+
+For YOLO segmentation (YOLO26-seg / Ultralytics seg models) you are no longer storing just boxes — you store masks (polygons).
+
+1. Dataset structure (segmentation)
+
+Same as detection:
+
+dataset/
+├── images/
+│   ├── train/
+│   └── val/
+├── labels/
+│   ├── train/
+│   └── val/
+└── data.yaml
+2. Label format (THIS is the key difference)
+
+Instead of bounding boxes, each object is:
+
+class_id x1 y1 x2 y2 x3 y3 ...
+
+These are polygon points normalized (0–1).
+
+Example:
+0 0.10 0.20 0.15 0.25 0.20 0.22 0.18 0.18
+
+That represents:
+
+class 0
+a polygon around the object
+
+Each line = one object.
+
+3. What YOLO segmentation is doing
+
+Internally:
+
+it converts polygons → masks
+trains a mask head (not just box head)
+outputs both:
+bounding box
+segmentation mask
+
+So your model becomes:
+
+yolo26n-seg.pt
+4. data.yaml (same as detection)
+path: /home/guest1/datasets/segdata
+
+train: images/train
+val: images/val
+
+names:
+  0: object
+  1: car
+  2: person
+
+No special segmentation flag needed here.
+
+5. Training command (segmentation version)
+
+This is the only change:
+
+yolo segment train \
+    model=yolo26n-seg.pt \
+    data=data.yaml \
+    epochs=100 \
+    imgsz=640
+6. How to label segmentation data
+
+You should NOT hand-write polygons.
+
+Use tools like:
+
+Best tools
+CVAT → best for polygons & masks
+Label Studio → flexible, modern UI
+Roboflow → easiest export to YOLO segmentation format
+
+These let you draw:
+
+polygons
+brush masks
+auto-annotation (optional)
+
+Then export as:
+
+YOLO Segmentation format
+
+7. Common segmentation mistakes
+❌ Wrong
+using bounding box labels (detection format)
+forgetting polygon normalization
+mixing box + seg formats
+inconsistent vertex ordering
+✅ Correct
+polygons per object
+normalized coordinates
+clean class IDs
+one .txt per image
+8. Quick sanity test (DO THIS FIRST)
+
+Before full training:
+
+yolo segment train model=yolo26n-seg.pt data=data.yaml epochs=1
+
+Check:
+
+masks show in validation preview
+no label errors
+GPU is used
+9. Mental model shift
+Task	Label format
+Detection	box (x, y, w, h)
+Segmentation	polygon points
+Pose	keypoints
+10. If you want the “clean workflow”
+
+I can help you set up:
+
+auto dataset checker (find broken masks)
+script to visualize labels on images
+conversion from COCO → YOLO-seg
+dataset validation before training
+proper experiment folder structure
+
+Just tell me what your raw data looks like (images, videos, COCO, etc.), because segmentation pipelines vary a lot depending on the source.
+
+Here is how the data works. Listen carefully. I am in this folder: guest1@gehme-gpu:~/synthetic_images/synthetic_images/cme_seg_20250320$. In here, there are thousands of folders, named"0," "1," "2," etc. Each of these folders contains the following: 0026.752_-015.606_0041.205_0018.222_0000.338_0064.804_sat2_back.png (an image, unimportant),  0026.752_-015.606_0041.205_0018.222_0000.338_0064.804_sat2_btot.png (THE IMAGE THAT IS PART OF THE TRAINING DATA), and a folder called mask. There are two classes we are classifying: CME, and occulter. Within each mask folder we have four files: 0026.752_-015.606_0041.205_0018.222_0000.338_0064.804_sat2_mask_0.png  (an image of the mask corresponding to the OCCULTER class), 0026.752_-015.606_0041.205_0018.222_0000.338_0064.804_sat2_mask_2.png (an image of the mask corresponding to the CME class),
+0026.752_-015.606_0041.205_0018.222_0000.338_0064.804_sat2_mask_1.png (unimportant), 0026.752_-015.606_0041.205_0018.222_0000.338_0064.804_sat2_mask_3.png (unimportant)
+
+Got it. Let me restate the structure to make sure we're aligned.
+
+You have:
+
+cme_seg_20250320/
+├── 0/
+│   ├── ..._btot.png          <-- training image
+│   ├── ..._back.png          <-- ignore
+│   └── mask/
+│       ├── ..._mask_0.png    <-- OCCULTER mask
+│       ├── ..._mask_2.png    <-- CME mask
+│       ├── ..._mask_1.png    <-- ignore
+│       └── ..._mask_3.png    <-- ignore
+├── 1/
+├── 2/
+...
+
+And for each numbered folder:
+
+Input image = *_btot.png
+Class 0 = OCCULTER = *_mask_0.png
+Class 1 = CME = *_mask_2.png
+Ignore mask_1.png and mask_3.png
+Important question
+
+Before we decide how to prepare the data for YOLO segmentation:
+
+What do the mask PNGs look like?
+
+Are they:
+
+Case A: Binary masks
+
+For example:
+
+mask_0.png
+
+black = background
+white = occulter
+
+and
+
+mask_2.png
+
+black = background
+white = CME
+
+?
+
+Or are they grayscale with multiple values?
+
+Why this matters
+
+YOLO segmentation does not train directly from arbitrary PNG masks.
+
+Ultralytics YOLO segmentation expects:
+
+image.png
+image.txt
+
+where the .txt contains polygon coordinates.
+
+So you'll likely need a conversion step:
+
+binary mask PNG
+      ↓
+extract contour
+      ↓
+polygon
+      ↓
+YOLO segmentation label
+
+This is very common.
+
+What I would do
+
+Write a preprocessing script that:
+
+Walks through all folders 0, 1, 2, ...
+Finds:
+*_btot.png
+*_mask_0.png
+*_mask_2.png
+Converts masks into polygons
+Writes YOLO segmentation labels
+
+Result:
+
+dataset/
+├── images/
+│   ├── train/
+│   └── val/
+├── labels/
+│   ├── train/
+│   └── val/
+└── data.yaml
+Class mapping
+
+I'd use:
+
+names:
+  0: occulter
+  1: cme
+
+So:
+
+mask_0.png -> class 0
+mask_2.png -> class 1
+Need one more piece of information
+
+Run this on one mask:
+
+python - <<'PY'
+from PIL import Image
+import numpy as np
+
+img = Image.open("mask/0026.752_-015.606_0041.205_0018.222_0000.338_0064.804_sat2_mask_0.png")
+arr = np.array(img)
+
+print(arr.shape)
+print(np.unique(arr)[:20])
+PY
+
+(or adjust the path to one of the mask files)
+
+Paste the output.
+
+What I want to know is:
+
+image dimensions
+unique pixel values
+
+Once I know whether these are binary masks, I can tell you exactly how to convert this dataset into YOLO26 segmentation format, and I can even provide a complete conversion script.
+
+they are BINARY masks.
+
+Perfect. Binary masks make this much easier.
+
+Your dataset is actually in a format that's common for segmentation research, but not in the format YOLO expects. You'll need a one-time conversion step.
+
+What you'll convert
+
+From:
+
+123/
+├── something_btot.png
+└── mask/
+    ├── something_mask_0.png   # OCCULTER
+    └── something_mask_2.png   # CME
+
+To:
+
+dataset/
+├── images/
+│   ├── train/
+│   └── val/
+├── labels/
+│   ├── train/
+│   └── val/
+└── data.yaml
+
+Where each label file contains polygon coordinates extracted from the binary masks.
+
+First thing I'd verify
+
+Let's check that the masks really are binary and see their dimensions.
+
+Pick one mask and run:
+
+python - <<'PY'
+from PIL import Image
+import numpy as np
+
+img = Image.open("0/mask/" + [f for f in __import__("os").listdir("0/mask") if "_mask_0.png" in f][0])
+
+arr = np.array(img)
+
+print("shape:", arr.shape)
+print("unique values:", np.unique(arr))
+PY
+
+From what you've described, I expect:
+
+shape: (H, W)
+unique values: [0 255]
+
+or
+
+unique values: [0 1]
+Then the conversion
+
+The basic process is:
+
+Read *_btot.png
+Read *_mask_0.png
+Find contours in the mask
+Convert contours to normalized polygon coordinates
+Write class 0
+Repeat for *_mask_2.png
+Write class 1
+Save a YOLO segmentation .txt
+
+A resulting label file might look like:
+
+0 0.12 0.33 0.14 0.35 0.16 0.38 ...
+1 0.55 0.22 0.56 0.24 0.59 0.27 ...
+
+Each line is one object polygon.
+
+One potential issue
+
+I need to know whether:
+
+A. One connected region per mask
+
+Example:
+
+mask_0.png
+┌─────────┐
+│    ○    │
+└─────────┘
+
+or
+
+B. Multiple disconnected regions
+
+Example:
+
+mask_2.png
+┌─────────┐
+│ ○   ○ ○ │
+└─────────┘
+
+YOLO can handle multiple polygons, but the conversion script needs to know how to write them.
+
+Quick check
+
+Run:
+
+python - <<'PY'
+import cv2
+import numpy as np
+
+img = cv2.imread(
+    "0/mask/" + [f for f in __import__("os").listdir("0/mask") if "_mask_2.png" in f][0],
+    cv2.IMREAD_GRAYSCALE,
+)
+
+contours, _ = cv2.findContours(
+    img,
+    cv2.RETR_EXTERNAL,
+    cv2.CHAIN_APPROX_SIMPLE
+)
+
+print("number of contours:", len(contours))
+PY
+
+If you get something like:
+
+number of contours: 1
+
+for most images, the conversion is very straightforward.
+
+My recommendation
+
+Don't start training yet.
+
+Do this pipeline:
+
+Convert masks → YOLO segmentation labels
+Create train/val split
+Generate data.yaml
+Run:
+yolo segment train \
+    model=yolo26n-seg.pt \
+    data=data.yaml \
+    epochs=1
+Inspect a few label visualizations
+Then launch the full training run
+
+That avoids discovering a labeling problem after 10 hours of training.
+
+One more question: approximately how many numbered folders are there? Hundreds, thousands, or tens of thousands? That affects how I'd write the conversion script and train/validation split.
+
+shape: (512, 512, 4)
+unique values: [  0 255]
+
+Yes — you're right, and that changes the framing. I should have been more precise.
+
+Given your description, instance segmentation is the correct formulation.
+
+Your data is not:
+
+"Every pixel must be assigned a class."
+
+It is:
+
+"Find the objects/regions that exist, classify them, and produce a mask for each."
+
+That is exactly what YOLO segmentation is designed for.
+
+Your mapping is:
+
+Input:
+    *_btot.png
+
+Objects:
+    OCCULTER
+        mask_0.png
+        class = 0
+
+    CME
+        mask_2.png
+        class = 1
+
+YOLO-seg representation:
+
+image.png
+
+label.txt:
+
+0 polygon points...   <-- occulter instance
+1 polygon points...   <-- CME instance
+
+During inference YOLO outputs:
+
+Object 1:
+    class: occulter
+    confidence: 0.98
+    mask: ...
+
+Object 2:
+    class: CME
+    confidence: 0.94
+    mask: ...
+
+Which matches your problem.
+
+The distinction I should have made:
+
+Semantic segmentation
+
+Example:
+
+pixel 0 = background
+pixel 1 = CME
+pixel 2 = CME
+pixel 3 = background
+
+Output:
+
+one class map
+Instance segmentation (your case)
+
+Example:
+
+CME #1
+CME #2
+Occulter #1
+
+Output:
+
+multiple objects + masks
+
+Actually your data is nicely suited for YOLO-seg because:
+
+You already have separate object masks
+You have object classes
+The masks are binary per object
+The objects are spatially meaningful
+You probably want localization + mask
+
+Your conversion pipeline is exactly right:
+
+binary PNG mask
+        |
+        v
+contours
+        |
+        v
+YOLO polygon labels
+        |
+        v
+yolo26n-seg.pt training
+
+One thing I would check though: your CME mask (mask_2.png) may contain multiple disconnected CME blobs. That's still okay. YOLO segmentation can store multiple polygons for the same class in one image:
+
+1 x1 y1 x2 y2 ...
+1 x1 y1 x2 y2 ...
+
+Each line is one instance.
+
+Your choice of yolo26n-seg.pt is reasonable. With your RTX 3090s you could also test:
+
+yolo segment train \
+    model=yolo26s-seg.pt \
+    data=data.yaml \
+    imgsz=512 \
+    epochs=100
+
+The s model may give better masks while still being fast on 24 GB VRAM.
+
+cd ~/synthetic_images/synthetic_images/cme_seg_20250320
+
+Make output folders:
+
+mkdir -p ~/datasets/cme_yolo_seg/images/train
+mkdir -p ~/datasets/cme_yolo_seg/images/val
+mkdir -p ~/datasets/cme_yolo_seg/labels/train
+mkdir -p ~/datasets/cme_yolo_seg/labels/val should I really be making this deep within the repo, or at the top?
+
+Good catch. Do not put the converted dataset deep inside your original data folder. Keep the original dataset untouched.
+
+Your current location:
+
+~/synthetic_images/synthetic_images/cme_seg_20250320
+
+is your source dataset. Treat it as read-only.
+
+I would make the YOLO-formatted dataset somewhere separate, for example:
+
+/home/guest1/
+├── synthetic_images/
+│   └── synthetic_images/
+│       └── cme_seg_20250320/     <-- ORIGINAL (leave alone)
+│
+├── datasets/
+│   └── cme_yolo_seg/             <-- NEW YOLO dataset
+│       ├── images/
+│       │   ├── train/
+│       │   └── val/
+│       ├── labels/
+│       │   ├── train/
+│       │   └── val/
+│       └── data.yaml
+│
+└── envs/
+    └── yolo26/
+
+So yes, the commands:
+
+mkdir -p ~/datasets/cme_yolo_seg/images/train
+mkdir -p ~/datasets/cme_yolo_seg/images/val
+mkdir -p ~/datasets/cme_yolo_seg/labels/train
+mkdir -p ~/datasets/cme_yolo_seg/labels/val
+
+are good — they put it at the top level of your home directory, not inside the repo/data.
+
+I would avoid this:
+
+❌ cme_seg_20250320/
+   ├── 0/
+   ├── 1/
+   ├── converted_yolo/
+
+because:
+
+you might accidentally modify the original
+conversion scripts/runs mix with raw data
+harder to reproduce
+
+A clean workflow for you:
+
+cd ~/synthetic_images/synthetic_images/cme_seg_20250320
+python convert_to_yolo_seg.py
+
+The script reads from there.
+
+It writes to:
+
+~/datasets/cme_yolo_seg
+
+Then train:
+
+cd ~/datasets/cme_yolo_seg
+
+yolo segment train \
+    model=yolo26n-seg.pt \
+    data=data.yaml \
+    epochs=100 \
+    imgsz=512
+
+Also: I would not git the dataset. Your git repo should probably only contain:
+
+yolo-cme-project/
+├── convert_to_yolo_seg.py
+├── train.sh
+├── data.yaml
+└── README.md
+
+The thousands of images/masks stay outside git.
+
+how do i kill folders i alr made
+
+Great questions. The previous script was a basic converter, but for what you want (multiple dataset sizes + controlled split) I would modify it. You are thinking about this the right way.
+
+Let's make the output:
+
+~/datasets/
+├── cme_yolo_seg_100/
+├── cme_yolo_seg_50/
+├── cme_yolo_seg_30/
+└── cme_yolo_seg_10/
+
+Each one:
+
+cme_yolo_seg_100/
+├── images/
+│   ├── train/  (85%)
+│   └── val/    (15%)
+├── labels/
+│   ├── train/
+│   └── val/
+└── data.yaml
+Revised conversion script
+
+This version:
+
+✅ works with your folder structure
+✅ ignores _back.png
+✅ uses only _btot.png
+✅ uses only mask_0 and mask_2
+✅ makes 85/15 split
+✅ makes 100/50/30/10% versions
+✅ keeps the same split seed so comparisons are fair
+
+Create:
+
+nano convert_cme_dataset.py
+
+Paste:
+
+import os
+import cv2
+import shutil
+import random
+from pathlib import Path
+
+
+SOURCE = Path(
+    "/home/guest1/synthetic_images/synthetic_images/cme_seg_20250320"
+)
+
+OUT_BASE = Path("/home/guest1/datasets")
+
+random.seed(42)
+
+# percentages of full dataset
+fractions = {
+    "100": 1.0,
+    "50": 0.5,
+    "30": 0.3,
+    "10": 0.1,
+}
+
+
+def mask_to_polygons(mask):
+
+    mask = (mask > 0).astype("uint8") * 255
+
+    contours, _ = cv2.findContours(
+        mask,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE
+    )
+
+    polys = []
+
+    for c in contours:
+
+        if cv2.contourArea(c) < 10:
+            continue
+
+        c = c.squeeze()
+
+        if len(c.shape) != 2:
+            continue
+
+        polys.append(c)
+
+    return polys
+
+
+
+folders = [
+    f for f in SOURCE.iterdir()
+    if f.is_dir() and f.name.isdigit()
+]
+
+random.shuffle(folders)
+
+
+# split 85/15
+split = int(0.85 * len(folders))
+
+train_all = folders[:split]
+val_all = folders[split:]
+
+
+def process_folder(folder, outdir, split_name):
+
+    image = list(folder.glob("*_btot.png"))
+
+    if len(image) != 1:
+        return
+
+    image = image[0]
+
+    shutil.copy(
+        image,
+        outdir / "images" / split_name / image.name
+    )
+
+
+    label_path = (
+        outdir /
+        "labels" /
+        split_name /
+        (image.stem + ".txt")
+    )
+
+
+    img = cv2.imread(str(image))
+
+    h,w = img.shape[:2]
+
+
+    lines=[]
+
+
+    prefix=image.stem.replace("_btot","")
+
+
+    masks = [
+        (0, folder/"mask"/f"{prefix}_mask_0.png"),
+        (1, folder/"mask"/f"{prefix}_mask_2.png"),
+    ]
+
+
+    for cls, maskfile in masks:
+
+        if not maskfile.exists():
+            continue
+
+        mask=cv2.imread(
+            str(maskfile),
+            cv2.IMREAD_UNCHANGED
+        )
+
+
+        mask=mask[:,:,0]
+
+
+        for poly in mask_to_polygons(mask):
+
+            coords=[]
+
+            for x,y in poly:
+
+                coords.append(str(x/w))
+                coords.append(str(y/h))
+
+
+            lines.append(
+                str(cls)+" "+" ".join(coords)
+            )
+
+
+    label_path.write_text(
+        "\n".join(lines)
+    )
+
+
+
+for name, frac in fractions.items():
+
+    outdir = OUT_BASE / f"cme_yolo_seg_{name}"
+
+    selected_train = train_all[:int(len(train_all)*frac)]
+    selected_val = val_all[:int(len(val_all)*frac)]
+
+
+    for split_name, folderset in [
+        ("train", selected_train),
+        ("val", selected_val)
+    ]:
+
+        for d in [
+            outdir/"images"/split_name,
+            outdir/"labels"/split_name
+        ]:
+            d.mkdir(parents=True, exist_ok=True)
+
+
+        for folder in folderset:
+            process_folder(
+                folder,
+                outdir,
+                split_name
+            )
+
+
+    yaml = f"""
+path: {outdir}
+
+train: images/train
+val: images/val
+
+names:
+  0: occulter
+  1: cme
+"""
+
+
+    (outdir/"data.yaml").write_text(yaml)
+
+
+    print(
+        name,
+        "created:",
+        len(selected_train),
+        "train folders",
+        len(selected_val),
+        "val folders"
+    )
+
+
+print("DONE")
+Run it
+
+From anywhere:
+
+python convert_cme_dataset.py
+
+You should see something like:
+
+100 created: 8500 train folders 1500 val folders
+50 created: 4250 train folders 750 val folders
+30 created: 2550 train folders 450 val folders
+10 created: 850 train folders 150 val folders
+DONE
+How to verify it worked
+1. Check counts
+find ~/datasets/cme_yolo_seg_100/images/train -type f | wc -l
+
+Compare:
+
+find ~/datasets/cme_yolo_seg_100/labels/train -type f | wc -l
+
+They should match.
+
+2. Check a label
+head ~/datasets/cme_yolo_seg_100/labels/train/*.txt
+
+You should see:
+
+0 0.12 0.34 0.56 ...
+1 0.22 0.44 0.66 ...
+3. Let YOLO validate it
+
+Run:
+
+cd ~/datasets/cme_yolo_seg_100
+
+yolo segment train \
+    model=yolo26n-seg.pt \
+    data=data.yaml \
+    epochs=1 \
+    imgsz=512
+
+If labels are bad, YOLO will complain immediately.
+
+One thing I would change from my earlier script
+
+I used int(0.8) before — you asked for 85/15, so this version fixes that.
+
+Also, for scientific comparison, keeping the same random seed across 10/30/50/100% is important. Otherwise your dataset size experiment is confounded by different train/val splits.
+
+(yolo26) guest1@gehme-gpu:~$ python nano convert_cme_dataset.py
+python: can't open file '/home/guest1/nano': [Errno 2] No such file or directory
+
+You accidentally combined two commands.
+
+You typed:
+
+python nano convert_cme_dataset.py
+
+Python interpreted that as:
+
+"Run a Python file named nano"
+
+which is why it says:
+
+can't open file '/home/guest1/nano'
+
+Do this instead:
+
+1. Create/edit the file with nano
+nano convert_cme_dataset.py
+
+Paste the script into it.
+
+Save:
+
+Ctrl + O (write out)
+press Enter
+Ctrl + X (exit)
+2. Run the Python script
+python convert_cme_dataset.py
+
+Also check where you are:
+
+pwd
+ls
+
+You should see:
+
+convert_cme_dataset.py
+
+before running it.
+
+If you want it organized, I would put the script somewhere like:
+
+~/projects/cme_yolo/
+
+and keep your generated datasets in:
+
+~/datasets/
+
+separate from the original synthetic_images folder.
+
+SOURCE = Path(
+    "/home/guest1/synthetic_images/synthetic_images/cme_seg_20250320"
+)
+
+OUT_BASE = Path("/home/guest1/datasets")
+ are u sure these r correct paths
+
+Good catch — I should not assume those paths are correct. I inferred them from what you showed earlier, but you should verify. Let's check.
+
+You said you were in:
+
+guest1@gehme-gpu:~/synthetic_images/synthetic_images/cme_seg_20250320$
+
+That means the full source path is very likely:
+
+/home/guest1/synthetic_images/synthetic_images/cme_seg_20250320
+
+So this:
+
+SOURCE = Path(
+    "/home/guest1/synthetic_images/synthetic_images/cme_seg_20250320"
+)
+
+is probably correct.
+
+For output:
+
+OUT_BASE = Path("/home/guest1/datasets")
+
+This assumes you want datasets here:
+
+/home/guest1/datasets/
+
+That is a reasonable choice, but verify it exists:
+
+ls ~
+
+If you don't see datasets, make it:
+
+mkdir -p ~/datasets
+
+Before running the script, I recommend checking both paths:
+
+ls /home/guest1/synthetic_images/synthetic_images/cme_seg_20250320 | head
+
+You should see:
+
+0
+1
+2
+3
+...
+
+Then:
+
+ls /home/guest1/datasets
+
+A safer way is to use ~ in the script:
+
+SOURCE = Path(
+    "~/synthetic_images/synthetic_images/cme_seg_20250320"
+).expanduser()
+
+OUT_BASE = Path("~/datasets").expanduser()
+
+That way it doesn't hardcode your username/path.
+
+I would actually use the expanduser() version. It will work even if your home directory changes.
+
+(yolo26) guest1@gehme-gpu:~$ python convert_cme_dataset.py
+100 created: 17000 train folders 3000 val folders
+50 created: 8500 train folders 1500 val folders
+30 created: 5100 train folders 900 val folders
+10 created: 1700 train folders 300 val folders
+DONE i now wish to verify that this has been done correctly and not screwed up
+
+Good. The script output looks very plausible:
+
+100 created: 17000 train folders 3000 val folders
+50 created: 8500 train folders 1500 val folders
+30 created: 5100 train folders 900 val folders
+10 created: 1700 train folders 300 val folders
+DONE
+
+It found 20,000 source samples and split them 85/15. Now let's verify properly.
+
+1. Check dataset folders exist
+
+Run:
+
+ls ~/datasets
+
+You should see:
+
+cme_yolo_seg_100
+cme_yolo_seg_50
+cme_yolo_seg_30
+cme_yolo_seg_10
+2. Check image/label counts match
+
+For the 100% dataset:
+
+find ~/datasets/cme_yolo_seg_100/images/train -type f | wc -l
+
+should be:
+
+17000
+
+Then:
+
+find ~/datasets/cme_yolo_seg_100/labels/train -type f | wc -l
+
+should also be:
+
+17000
+
+Same for validation:
+
+find ~/datasets/cme_yolo_seg_100/images/val -type f | wc -l
+find ~/datasets/cme_yolo_seg_100/labels/val -type f | wc -l
+
+should both be:
+
+3000
+3. Check the YAML
+cat ~/datasets/cme_yolo_seg_100/data.yaml
+
+You want:
+
+path: /home/guest1/datasets/cme_yolo_seg_100
+
+train: images/train
+val: images/val
+
+names:
+  0: occulter
+  1: cme
+4. Check labels look correct
+
+Pick one:
+
+head ~/datasets/cme_yolo_seg_100/labels/train/*.txt
+
+You should see something like:
+
+0 0.12 0.34 0.15 0.36 ...
+1 0.52 0.21 0.55 0.24 ...
+
+Meaning:
+
+first number = class
+remaining numbers = polygon points
+5. Check label values are normalized
+
+This is important.
+
+YOLO expects all coordinates between 0 and 1.
+
+Run:
+
+python - <<'PY'
+from pathlib import Path
+
+files = list(Path.home().joinpath("datasets/cme_yolo_seg_100/labels/train").glob("*.txt"))
+
+bad = 0
+
+for f in files[:100]:
+    for line in f.read_text().splitlines():
+        vals = list(map(float,line.split()[1:]))
+        if any(x < 0 or x > 1 for x in vals):
+            bad += 1
+            print("bad:", f)
+            break
+
+print("bad files:", bad)
+PY
+
+Expected:
+
+bad files: 0
+6. The most important test: let YOLO read it
+
+Run a 1 epoch smoke test:
+
+cd ~/datasets/cme_yolo_seg_100
+
+yolo segment train \
+    model=yolo26n-seg.pt \
+    data=data.yaml \
+    epochs=1 \
+    imgsz=512
+
+A successful run means:
+
+YAML works
+images load
+labels load
+polygons are valid
+model starts training
+7. Check visual correctness (recommended)
+
+After that:
+
+ls runs/segment/train
+
+You should see:
+
+results.png
+train_batch0.jpg
+train_batch1.jpg
+
+The train_batch*.jpg images are the gold check. They should show:
+
+your original image
+colored segmentation overlays
+CME/occulter outlines
+
+If those look right, you are good.
+
+Given your output, I think the conversion probably worked, but the visual check is the one that catches subtle mistakes (wrong mask mapping, flipped coordinates, bad contours, etc.).
+
+WHAT ELSE is EVERYTHING i need before doing a YOLO training run. I want to use Ultralytics YOLO26, I have a GPU i need to select
+
+Good. That confirms GPU 0 is the RTX 3090 you want.
+
+Your relevant line:
+
+0  NVIDIA GeForce RTX 3090
+    24576MiB
+
+means:
+
+GPU index: 0
+VRAM: 24 GB
+Currently only ~1 GB used
+Available for training
+
+Use:
+
+device=0
+
+in your Ultralytics command.
+
+I would do your first real run like this:
+
+tmux new -s cme_train
+
+then:
+
+source ~/envs/yolo26/bin/activate
+
+cd ~/datasets/cme_yolo_seg_100
+
+yolo segment train \
+    model=yolo26s-seg.pt \
+    data=data.yaml \
+    epochs=100 \
+    imgsz=512 \
+    batch=16 \
+    device=0 \
+    project=~/runs/cme_yolo \
+    name=baseline_100
+
+While it runs, open another SSH window and watch:
+
+watch -n 1 nvidia-smi
+
+You should see GPU 0 go from:
+
+46W
+1039MiB
+16%
+
+to something like:
+
+200-350W
+10000-20000MiB
+90%+
+
+during training.
+
+A couple notes for your RTX 3090:
+
+batch=16 is a reasonable starting point at imgsz=512.
+If you get:
+CUDA out of memory
+
+drop:
+
+batch=8
+If it runs comfortably, try:
+batch=32
+
+later.
+
+Also, because you have 2 GPUs, do not accidentally use both unless you intend to. Keep:
+
+device=0
+
+for this experiment so your comparisons (100%, 50%, 30%, 10%) are consistent.
+
+26s the smallest right?
+
+For YOLO26, yes: yolo26n-seg.pt is the smallest, not 26s.
+
+The naming convention is:
+
+Model	Meaning	Size	Speed	Accuracy
+yolo26n-seg.pt	nano	smallest	fastest	lowest
+yolo26s-seg.pt	small	bigger	fast	better
+yolo26m-seg.pt	medium	bigger	slower	better
+yolo26l-seg.pt	large	big	slower	higher
+yolo26x-seg.pt	extra large	biggest	slowest	highest
+
+(n = nano)
+
+For your case:
+
+RTX 3090 24GB ✅
+20k images ✅
+512×512 input ✅
+2 classes ✅
+
+I would not start with nano unless you just want a pipeline test.
+
+I would do:
+
+Smoke test
+yolo segment train \
+    model=yolo26n-seg.pt \
+    data=data.yaml \
+    epochs=1 \
+    imgsz=512 \
+    device=0
+
+Then real baseline:
+
+yolo segment train \
+    model=yolo26s-seg.pt \
+    data=data.yaml \
+    epochs=100 \
+    imgsz=512 \
+    batch=16 \
+    device=0 \
+    project=~/runs/cme_yolo \
+    name=yolo26s_100
+
+Your 3090 should handle yolo26s-seg.pt comfortably.
+
+For your science/segmentation task, I would compare:
+
+yolo26n-seg.pt → fast baseline
+yolo26s-seg.pt → likely sweet spot
+maybe yolo26m-seg.pt → if masks need more detail
+
+Don't jump straight to x; you are better off spending compute on experiments (100/50/30/10% datasets, augmentations, epochs) than just making the model huge.
+
+is the size of MY images 512?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Good. Let's make it reusable. The idea:
+
+You give it:
+best.pt
+YOLO dataset data.yaml
+original dataset folder (your simulation folders)
+It:
+runs inference on validation images
+matches predictions to your original masks
+calculates:
+CME IoU
+Occulter IoU
+mean IoU
+Dice score
+
+This will work for your 10/30/50/100% experiments.
+
+Create the script on the server:
+
+cd ~
+nano evaluate_miou.py
+
+Paste:
+
+from pathlib import Path
+import cv2
+import numpy as np
+from ultralytics import YOLO
+import yaml
+import argparse
+
+
+def iou_score(gt, pred):
+    intersection = np.logical_and(gt, pred).sum()
+    union = np.logical_or(gt, pred).sum()
+
+    if union == 0:
+        return 1.0
+
+    return intersection / union
+
+
+def dice_score(gt, pred):
+    intersection = np.logical_and(gt, pred).sum()
+
+    denom = gt.sum() + pred.sum()
+
+    if denom == 0:
+        return 1.0
+
+    return 2 * intersection / denom
+
+
+def find_original_folder(image_name, source_root):
+    """
+    Find original folder containing this image.
+    Original structure:
+
+    cme_seg_20250320/
+        0/
+        1/
+        2/
+        ...
+    """
+
+    stem = Path(image_name).stem
+
+    for folder in source_root.iterdir():
+        if folder.is_dir():
+
+            # look for matching btot image
+            for img in folder.glob("*_btot.png"):
+                if img.stem == stem:
+                    return folder
+
+    return None
+
+
+def main(args):
+
+    model = YOLO(args.model)
+
+    with open(args.data) as f:
+        data = yaml.safe_load(f)
+
+    val_dir = Path(data["path"]) / data["val"]
+
+    source_root = Path(args.original)
+
+    results = model(
+        source=str(val_dir),
+        imgsz=args.imgsz,
+        device=args.device,
+        verbose=False
+    )
+
+
+    cme_ious = []
+    occ_ious = []
+
+    cme_dice = []
+    occ_dice = []
+
+
+    for r in results:
+
+        image_name = Path(r.path).name
+
+        original = find_original_folder(
+            image_name,
+            source_root
+        )
+
+        if original is None:
+            print("Missing original:", image_name)
+            continue
+
+
+        mask_dir = original / "mask"
+
+        # original masks
+        occ_gt = cv2.imread(
+            str(next(mask_dir.glob("*_mask_0.png"))),
+            cv2.IMREAD_GRAYSCALE
+        )
+
+        cme_gt = cv2.imread(
+            str(next(mask_dir.glob("*_mask_2.png"))),
+            cv2.IMREAD_GRAYSCALE
+        )
+
+
+        occ_gt = occ_gt > 0
+        cme_gt = cme_gt > 0
+
+
+        # predicted masks
+        occ_pred = np.zeros_like(occ_gt)
+        cme_pred = np.zeros_like(cme_gt)
+
+
+        if r.masks is not None:
+
+            masks = r.masks.data.cpu().numpy()
+            classes = r.boxes.cls.cpu().numpy()
+
+
+            for mask, cls in zip(masks, classes):
+
+                mask = cv2.resize(
+                    mask,
+                    (512,512)
+                ) > 0.5
+
+
+                if int(cls) == 0:
+                    occ_pred |= mask
+
+                elif int(cls) == 1:
+                    cme_pred |= mask
+
+
+
+        occ_iou = iou_score(
+            occ_gt,
+            occ_pred
+        )
+
+        cme_iou = iou_score(
+            cme_gt,
+            cme_pred
+        )
+
+
+        occ_ious.append(occ_iou)
+        cme_ious.append(cme_iou)
+
+
+        occ_dice.append(
+            dice_score(occ_gt, occ_pred)
+        )
+
+        cme_dice.append(
+            dice_score(cme_gt, cme_pred)
+        )
+
+
+    print("\nRESULTS")
+    print("----------------")
+    print(f"Occulter IoU: {np.mean(occ_ious):.4f}")
+    print(f"CME IoU:      {np.mean(cme_ious):.4f}")
+
+    print("----------------")
+    print(f"Mean IoU:     {(np.mean(occ_ious)+np.mean(cme_ious))/2:.4f}")
+
+    print("----------------")
+    print(f"Occ Dice:     {np.mean(occ_dice):.4f}")
+    print(f"CME Dice:     {np.mean(cme_dice):.4f}")
+    print(f"Mean Dice:    {(np.mean(occ_dice)+np.mean(cme_dice))/2:.4f}")
+
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--model",
+        required=True
+    )
+
+    parser.add_argument(
+        "--data",
+        required=True
+    )
+
+    parser.add_argument(
+        "--original",
+        required=True
+    )
+
+    parser.add_argument(
+        "--device",
+        default="0"
+    )
+
+    parser.add_argument(
+        "--imgsz",
+        default=512,
+        type=int
+    )
+
+    args = parser.parse_args()
+
+    main(args)
+
+Save:
+
+CTRL+O, Enter, CTRL+X
+
+Run it for your 30% experiment
+
+Example:
+
+python ~/evaluate_miou.py \
+--model ~/runs/cme_yolo/yolo26n_30pct_20ep/weights/best.pt \
+--data ~/datasets/cme_yolo_seg_30/data.yaml \
+--original ~/synthetic_images/synthetic_images/cme_seg_20250320
+
+Output:
+
+RESULTS
+----------------
+Occulter IoU: 0.xxxx
+CME IoU:      0.xxxx
+----------------
+Mean IoU:     0.xxxx
+----------------
+Occ Dice:     0.xxxx
+CME Dice:     0.xxxx
+Mean Dice:    0.xxxx
+
+Then for 50%/100% you only change:
+
+--model
+--data
+
+Everything else stays identical.
+
+One note: this evaluates after training, which is the right place for mIoU. For "mIoU over epochs" you would need a custom callback, but for comparing experiments this is the cleaner setup.
