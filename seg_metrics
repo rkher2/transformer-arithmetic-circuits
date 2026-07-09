@@ -1,0 +1,17 @@
+import cv2
+import numpy as np
+
+# convert mask image to numpy binary mask
+def get_gt_mask(mask_path):
+    mask = cv2.imread(str(mask_path), cv2.IMREAD_UNCHANGED)
+    if mask.ndim == 3:
+        mask = mask[:, :, 0]
+    return mask > 0
+
+# calculate IoU between a ground truth mask and a predicted mask
+def iou(a, b):
+    intersection = np.logical_and(a, b).sum()
+    union = np.logical_or(a, b).sum()
+    if union == 0:
+        return 0.0
+    return intersection / union
