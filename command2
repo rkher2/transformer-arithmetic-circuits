@@ -1,0 +1,11 @@
+python ~/train_with_tracking.py \
+  --data ~/datasets/cme_yolo_seg_30/data.yaml \
+  --original ~/synthetic_images/synthetic_images/cme_seg_20250320 \
+  --name yolo26n_30pct_20ep_noise_flip_rot \
+  --epochs 20 \
+  --device 0 \
+  --fliplr 0.5 \
+  --flipud 0.5 \
+  --degrees 15 \
+  --gaussian_noise_std 30.0 \
+  --gaussian_noise_p 0.3
