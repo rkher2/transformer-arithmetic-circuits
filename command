@@ -43,6 +43,25 @@ guest1@gehme-gpu:~/runs/cme_yolo$ cd ..
 guest1@gehme-gpu:~/runs$ cd ..
 guest1@gehme-gpu:~$ nvidia-smi
 Mon Jul 13 16:33:50 2026       
+results.csv
+results.png
+confusion_matrix.png
+confusion_matrix_normalized.png
+MaskPR_curve.png
+MaskP_curve.png
+MaskR_curve.png
+MaskF1_curve.png
+BoxP_curve.png
+BoxR_curve.png
+BoxF1_curve.png
+BoxPR_curve.png
+eval_outputs/iou_hist_cme.png
+eval_outputs/iou_hist_occulter.png
+train_losses.png
+val_losses.png
+pq_over_epochs.png
+iou_over_epochs.png
+
 +-----------------------------------------------------------------------------------------+
 | NVIDIA-SMI 580.159.03             Driver Version: 580.159.03     CUDA Version: 13.0     |
 +-----------------------------------------+------------------------+----------------------+
