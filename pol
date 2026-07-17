@@ -1,0 +1,39 @@
+Just a styling change — two places currently have this pattern: plot_combined.py (the loss+IoU dual-axis plot) and eval_threshold.py (the mask-threshold sweep). Let me update both, since "median black, quartile band grayscale" applies to any curve you plot this way.
+1. plot_combined.py
+bashnano ~/plot_combined.py
+Find:
+pythonax2 = ax1.twinx()
+ax2.plot(iou_df["epoch"], iou_df["median_iou"], color="black", linewidth=2, label="median IoU")
+ax2.fill_between(iou_df["epoch"], iou_df["q1_iou"], iou_df["q3_iou"],
+                  color="black", alpha=0.15, label="IoU IQR (Q1-Q3)")
+Replace with:
+pythonax2 = ax1.twinx()
+ax2.fill_between(iou_df["epoch"], iou_df["q1_iou"], iou_df["q3_iou"],
+                  color="0.6", alpha=0.5, label="IoU IQR (Q1-Q3)")
+ax2.plot(iou_df["epoch"], iou_df["median_iou"], color="black", linewidth=2.5, label="median IoU")
+(color="0.6" is matplotlib's grayscale shorthand — a string between "0" (black) and "1" (white); 0.6 gives a clear mid-gray. Draw order also swapped so the black median line renders on top of the gray band instead of underneath it.)
+2. eval_threshold.py
+bashnano ~/eval_threshold.py
+Find:
+pythonplt.figure(figsize=(10, 6))
+colors = {"occulter": "tab:blue", "cme": "tab:orange"}
+
+for name in CLASS_NAMES.values():
+    c = colors[name]
+    plt.plot(THRESHOLDS, sweep_results[name]["median"], color=c, linewidth=2, label=f"{name} median IoU")
+    plt.plot(THRESHOLDS, sweep_results[name]["q1"], color=c, linestyle="--", alpha=0.6, label=f"{name} Q1")
+    plt.plot(THRESHOLDS, sweep_results[name]["q3"], color=c, linestyle=":", alpha=0.6, label=f"{name} Q3")
+This one needs a bit more thought than a straight swap — you're plotting two classes on one graph, and pure black/grayscale for both would make occulter and CME indistinguishable from each other. I'm keeping distinct grayscale shades per class (still no color, but different enough to tell apart) with a shaded IQR band per class instead of separate Q1/Q3 lines:
+pythonplt.figure(figsize=(10, 6))
+class_styles = {"occulter": {"median_color": "black", "band_color": "0.75"},
+                "cme": {"median_color": "0.25", "band_color": "0.5"}}
+
+for name in CLASS_NAMES.values():
+    style = class_styles[name]
+    plt.fill_between(THRESHOLDS, sweep_results[name]["q1"], sweep_results[name]["q3"],
+                      color=style["band_color"], alpha=0.5, label=f"{name} IQR (Q1-Q3)")
+    plt.plot(THRESHOLDS, sweep_results[name]["median"], color=style["median_color"],
+              linewidth=2.5, label=f"{name} median IoU")
+If you'd rather keep occulter/CME visually distinguished by actual color (since grayscale-on-grayscale for two classes can get hard to read at a glance), tell me and I'll keep color for the class distinction but still apply black-median/grayscale-band within each class's own color family (e.g., a black median line with a light-blue-tinted band for occulter, dark line with light-orange band for CME) — that's a reasonable middle ground between your instruction and readability with two classes on one plot. Let me know which you'd prefer before you run a batch of these across many models.
+Verify and rerun either script as usual:
+bashpython -m py_compile ~/plot_combined.py ~/eval_threshold.py && echo "syntax OK"
